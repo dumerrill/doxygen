@@ -893,11 +893,15 @@ static void searchTemplateSpecs(/*in*/  Definition *d,
       clName = clName.left(clName.length()-2);
     }
     name+=clName;
+
+    // Mooch
     bool isSpecialization = d->localName().find('<')!=-1;
+
     if (cd->templateArguments())
     {
       result.append(cd->templateArguments());
-      if (!isSpecialization)
+//      if (!isSpecialization)
+      if (isSpecialization)
       {
         name+=tempArgListToString(cd->templateArguments(),lang);
       }
@@ -925,6 +929,14 @@ static void writeTemplateSpec(OutputList &ol,Definition *d,
       ol.docify("template<");
       QListIterator<Argument> ali(*al);
       Argument *a;
+
+      // mooch
+      if (al->count() > 1)
+      {
+          ol.lineBreak();
+          ol.writeNonBreakableSpace(4);
+      }
+
       while ((a=ali.current()))
       {
         ol.docify(a->type);
@@ -940,7 +952,14 @@ static void writeTemplateSpec(OutputList &ol,Definition *d,
         }
         ++ali;
         a=ali.current();
-        if (a) ol.docify(", ");
+        if (a)
+        {
+            ol.docify(", ");
+
+            // mooch
+            ol.lineBreak();
+            ol.writeNonBreakableSpace(4);
+        }
       }
       ol.docify(">");
       ol.lineBreak();
@@ -2126,7 +2145,9 @@ QCString ClassDef::title() const
   {
     if (Config_getBool(HIDE_COMPOUND_REFERENCE))
     {
-      pageTitle = displayName();
+        // mooch
+        pageTitle = displayName(false);
+//      pageTitle = displayName();
     }
     else
     {

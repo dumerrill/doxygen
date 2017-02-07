@@ -1612,19 +1612,19 @@ void HtmlGenerator::startMemberDocName(bool /*align*/)
   t << "      <table class=\"memname\">" << endl;
     
   t << "        <tr>" << endl;
-  t << "          <td class=\"memname\">";
+  t << "          <td class=\"memname\" colspan=\"4\">";
 }
 
 void HtmlGenerator::endMemberDocName()
 {
   DBG_HTML(t << "<!-- endMemberDocName -->" << endl;)
-  t << "</td>" << endl;
+  t << "</td> <td></td> <td></td> <td></td> </tr>" << endl;
 }
 
 void HtmlGenerator::startParameterList(bool openBracket)
 {
   DBG_HTML(t << "<!-- startParameterList -->" << endl;)
-  t << "          <td>";
+  t << "          <tr> <td></td> <td>";
   if (openBracket) t << "(";
   t << "</td>" << endl;
 }

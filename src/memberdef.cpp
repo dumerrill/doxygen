@@ -446,6 +446,14 @@ static void writeTemplatePrefix(OutputList &ol,ArgumentList *al)
   ol.docify("template<");
   ArgumentListIterator ali(*al);
   Argument *a = ali.current();
+
+  // mooch
+  if (al->count() > 1)
+  {
+      ol.lineBreak();
+      ol.writeNonBreakableSpace(4);
+  }
+
   while (a)
   {
     ol.docify(a->type);
@@ -458,7 +466,13 @@ static void writeTemplatePrefix(OutputList &ol,ArgumentList *al)
     }
     ++ali;
     a=ali.current();
-    if (a) ol.docify(", ");
+    if (a) {
+        ol.docify(", ");
+
+        // mooch
+        ol.lineBreak();
+        ol.writeNonBreakableSpace(4);
+    }
   }
   ol.docify("> ");
 }
