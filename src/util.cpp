@@ -1993,125 +1993,192 @@ bool leftScopeMatch(const QCString &scope, const QCString &name)
 }
 
 
-void linkifyText(const TextGeneratorIntf &out,Definition *scope,
-    FileDef *fileScope,Definition *self,
-    const char *text, bool autoBreak,bool external,
-    bool keepSpaces,int indentLevel)
+void linkifyText(
+    const TextGeneratorIntf &out,
+    Definition *scope,
+    FileDef *fileScope,
+    Definition *self,
+    const char *text,
+    bool autoBreak,
+    bool external,
+    bool keepSpaces,
+    int indentLevel)
 {
-  //printf("linkify=`%s'\n",text);
-  static QRegExp regExp("[a-z_A-Z\\x80-\\xFF][~!a-z_A-Z0-9$\\\\.:\\x80-\\xFF]*");
-  static QRegExp regExpSplit("(?!:),");
-  QCString txtStr=text;
-  int strLen = txtStr.length();
-  //printf("linkifyText scope=%s fileScope=%s strtxt=%s strlen=%d external=%d\n",
-  //    scope?scope->name().data():"<none>",
-  //    fileScope?fileScope->name().data():"<none>",
-  //    txtStr.data(),strLen,external);
-  int matchLen;
-  int index=0;
-  int newIndex;
-  int skipIndex=0;
-  int floatingIndex=0;
-  if (strLen==0) return;
-  // read a word from the text string
-  while ((newIndex=regExp.match(txtStr,index,&matchLen))!=-1 && 
-      (newIndex==0 || !(txtStr.at(newIndex-1)>='0' && txtStr.at(newIndex-1)<='9')) // avoid matching part of hex numbers
-      )
-  {
-    // add non-word part to the result
-    floatingIndex+=newIndex-skipIndex+matchLen;
-    bool insideString=FALSE; 
-    int i;
-    for (i=index;i<newIndex;i++) 
-    { 
-      if (txtStr.at(i)=='"') insideString=!insideString; 
-    }
+//    printf("linkify=`%s'\n",text);
 
-    //printf("floatingIndex=%d strlen=%d autoBreak=%d\n",floatingIndex,strLen,autoBreak);
-    if (strLen>35 && floatingIndex>30 && autoBreak) // try to insert a split point
-    {
-      QCString splitText = txtStr.mid(skipIndex,newIndex-skipIndex);
-      int splitLength = splitText.length();
-      int offset=1;
-      i=splitText.find(regExpSplit,0);
-      if (i==-1) { i=splitText.find('<'); if (i!=-1) offset=0; }
-      if (i==-1) i=splitText.find('>');
-      if (i==-1) i=splitText.find(' ');
-      //printf("splitText=[%s] len=%d i=%d offset=%d\n",splitText.data(),splitLength,i,offset);
-      if (i!=-1) // add a link-break at i in case of Html output
-      {
-        out.writeString(splitText.left(i+offset),keepSpaces);
-        out.writeBreak(indentLevel==0 ? 0 : indentLevel+1);
-        out.writeString(splitText.right(splitLength-i-offset),keepSpaces);
-        floatingIndex=splitLength-i-offset+matchLen;
-      } 
-      else
-      {
-        out.writeString(splitText,keepSpaces); 
-      }
-    }
-    else
-    {
-      //ol.docify(txtStr.mid(skipIndex,newIndex-skipIndex)); 
-      out.writeString(txtStr.mid(skipIndex,newIndex-skipIndex),keepSpaces); 
-    }
-    // get word from string
-    QCString word=txtStr.mid(newIndex,matchLen);
-    QCString matchWord = substitute(substitute(word,"\\","::"),".","::");
-    //printf("linkifyText word=%s matchWord=%s scope=%s\n",
-    //    word.data(),matchWord.data(),scope?scope->name().data():"<none>");
-    bool found=FALSE;
-    if (!insideString)
-    {
-      ClassDef     *cd=0;
-      FileDef      *fd=0;
-      MemberDef    *md=0;
-      NamespaceDef *nd=0;
-      GroupDef     *gd=0;
-      //printf("** Match word '%s'\n",matchWord.data());
+    static QRegExp regExp(
+        "[a-z_A-Z\\x80-\\xFF][~!a-z_A-Z0-9$\\\\.:\\x80-\\xFF]*");
+    QCString txtStr = text;
+    int strLen = txtStr.length();
+//    printf("linkifyText scope=%s fileScope=%s strtxt=%s strlen=%d external=%d\n",
+//        scope?scope->name().data():"<none>",
+//        fileScope?fileScope->name().data():"<none>",
+//        txtStr.data(),strLen,external);
+    int matchLen;
+    int index = 0;
+    int newIndex;
+    int skipIndex = 0;
+    int floatingIndex = 0;
+    if (strLen == 0) return;
 
-      MemberDef *typeDef=0;
-      cd=getResolvedClass(scope,fileScope,matchWord,&typeDef);
-      if (typeDef) // First look at typedef then class, see bug 584184.
-      {
-        //printf("Found typedef %s\n",typeDef->name().data());
-        if (external ? typeDef->isLinkable() : typeDef->isLinkableInProject())
+    bool insideTemplate = false;
+
+    // read a word from the text string
+    while ((newIndex = regExp.match(txtStr, index, &matchLen)) != -1
+        && (newIndex == 0
+            || !(txtStr.at(newIndex - 1) >= '0'
+                && txtStr.at(newIndex - 1) <= '9')) // avoid matching part of hex numbers
+    )
+    {
+        // add non-word part to the result
+        floatingIndex += newIndex - skipIndex + matchLen;
+        bool insideString = FALSE;
+        int i;
+        for (i = index; i < newIndex; i++)
         {
-          if (typeDef->getOuterScope()!=self)
-          {
-            out.writeLink(typeDef->getReference(),
-                typeDef->getOutputFileBase(),
-                typeDef->anchor(),
-                word);
-            found=TRUE;
-          }
+            if (txtStr.at(i) == '"') insideString = !insideString;
         }
-      }
-      if (!found && (cd || (cd=getClass(matchWord)))) 
-      {
-        //printf("Found class %s\n",cd->name().data());
-        // add link to the result
-        if (external ? cd->isLinkable() : cd->isLinkableInProject())
+
+/* Mooch
+        //printf("floatingIndex=%d strlen=%d autoBreak=%d\n",floatingIndex,strLen,autoBreak);
+        static QRegExp regExpSplit("(?!:),");
+        if (strLen > 35 && floatingIndex > 30 && autoBreak) // try to insert a split point
         {
-          if (cd!=self)
-          {
-            out.writeLink(cd->getReference(),cd->getOutputFileBase(),cd->anchor(),word);
-            found=TRUE;
-          }
+            QCString splitText = txtStr.mid(skipIndex, newIndex - skipIndex);
+            int splitLength = splitText.length();
+            int offset = 1;
+            i = splitText.find(regExpSplit, 0);
+            if (i == -1)
+            {
+                i = splitText.find('<');
+                if (i != -1) offset = 0;
+            }
+            if (i == -1) i = splitText.find('>');
+            if (i == -1) i = splitText.find(' ');
+            //printf("splitText=[%s] len=%d i=%d offset=%d\n",splitText.data(),splitLength,i,offset);
+            if (i != -1) // add a link-break at i in case of Html output
+            {
+                out.writeString(splitText.left(i + offset), keepSpaces);
+                out.writeBreak(indentLevel == 0 ? 0 : indentLevel + 1);
+                out.writeString(splitText.right(splitLength - i - offset),
+                    keepSpaces);
+                floatingIndex = splitLength - i - offset + matchLen;
+            }
+            else
+            {
+                out.writeString(splitText, keepSpaces);
+            }
         }
-      }
-      else if ((cd=getClass(matchWord+"-p"))) // search for Obj-C protocols as well
-      {
-        // add link to the result
-        if (external ? cd->isLinkable() : cd->isLinkableInProject())
+        else
         {
-          if (cd!=self)
-          {
-            out.writeLink(cd->getReference(),cd->getOutputFileBase(),cd->anchor(),word);
-            found=TRUE;
-          }
+            //ol.docify(txtStr.mid(skipIndex,newIndex-skipIndex));
+            out.writeString(txtStr.mid(skipIndex, newIndex - skipIndex),
+                keepSpaces);
         }
-      }
+*/
+
+        QCString splitText = txtStr.mid(skipIndex, newIndex - skipIndex);
+        if (splitText.find('<') != -1)
+        {
+            indentLevel += 2;
+        }
+        if (splitText.find('>') != -1)
+        {
+            indentLevel -= 2;
+            insideTemplate = false;
+        }
+
+        int offset = splitText.find(',');
+        if (offset == -1)
+            offset = splitText.find('(');
+        if (offset == -1)
+        {
+            offset = splitText.find('<');
+            int next_open = txtStr.find('<', skipIndex + offset + 1) - skipIndex;
+            int next_close = txtStr.find('>', skipIndex + offset + 1) - skipIndex;
+
+            if ((offset >= 0) &&
+                (next_close >= 0) &&
+                ((next_open < 0) || (next_close < next_open)) &&
+                (next_close - offset < 30))
+            {
+                // Don't break small inner set of template params
+                insideTemplate = true;
+            }
+        }
+        if ((strLen > 40) && (offset != -1) && (!insideTemplate))
+        {
+            int splitLength = splitText.length();
+            out.writeString(splitText.left(offset + 1), keepSpaces);
+            out.writeBreak(indentLevel + 1);
+//            out.writeString(splitText.right(splitLength - offset - 1), false);
+        }
+        else
+        {
+            out.writeString(txtStr.mid(skipIndex, newIndex - skipIndex), keepSpaces);
+        }
+
+        // get word from string
+        QCString word = txtStr.mid(newIndex, matchLen);
+        QCString matchWord = substitute(substitute(word, "\\", "::"), ".",
+            "::");
+        //printf("linkifyText word=%s matchWord=%s scope=%s\n",
+        //    word.data(),matchWord.data(),scope?scope->name().data():"<none>");
+        bool found = FALSE;
+        if (!insideString)
+        {
+            ClassDef *cd = 0;
+            FileDef *fd = 0;
+            MemberDef *md = 0;
+            NamespaceDef *nd = 0;
+            GroupDef *gd = 0;
+            //printf("** Match word '%s'\n",matchWord.data());
+
+            MemberDef *typeDef = 0;
+            cd = getResolvedClass(scope, fileScope, matchWord, &typeDef);
+            if (typeDef) // First look at typedef then class, see bug 584184.
+            {
+                //printf("Found typedef %s\n",typeDef->name().data());
+                if (external ?
+                    typeDef->isLinkable() :
+                    typeDef->isLinkableInProject())
+                {
+                    if (typeDef->getOuterScope() != self)
+                    {
+                        out.writeLink(typeDef->getReference(),
+                            typeDef->getOutputFileBase(), typeDef->anchor(),
+                            word);
+                        found = TRUE;
+                    }
+                }
+            }
+            if (!found && (cd || (cd = getClass(matchWord))))
+            {
+                //printf("Found class %s\n",cd->name().data());
+                // add link to the result
+                if (external ? cd->isLinkable() : cd->isLinkableInProject())
+                {
+                    if (cd != self)
+                    {
+                        out.writeLink(cd->getReference(),
+                            cd->getOutputFileBase(), cd->anchor(), word);
+                        found = TRUE;
+                    }
+                }
+            }
+            else if ((cd = getClass(matchWord + "-p"))) // search for Obj-C protocols as well
+            {
+                // add link to the result
+                if (external ? cd->isLinkable() : cd->isLinkableInProject())
+                {
+                    if (cd != self)
+                    {
+                        out.writeLink(cd->getReference(),
+                            cd->getOutputFileBase(), cd->anchor(), word);
+                        found = TRUE;
+                    }
+                }
+            }
 //      else if ((cd=getClass(matchWord+"-g"))) // C# generic as well
 //      {
 //        // add link to the result
@@ -2124,62 +2191,59 @@ void linkifyText(const TextGeneratorIntf &out,Definition *scope,
 //          }
 //        }
 //      }
-      else
-      {
-        //printf("   -> nothing\n");
-      }
+            else
+            {
+                //printf("   -> nothing\n");
+            }
 
-      int m = matchWord.findRev("::");
-      QCString scopeName;
-      if (scope && 
-          (scope->definitionType()==Definition::TypeClass || 
-           scope->definitionType()==Definition::TypeNamespace
-          ) 
-         )
-      {
-        scopeName=scope->name();
-      }
-      else if (m!=-1)
-      {
-        scopeName = matchWord.left(m);
-        matchWord = matchWord.mid(m+2);
-      }
+            int m = matchWord.findRev("::");
+            QCString scopeName;
+            if (scope
+                && (scope->definitionType() == Definition::TypeClass
+                    || scope->definitionType() == Definition::TypeNamespace))
+            {
+                scopeName = scope->name();
+            }
+            else if (m != -1)
+            {
+                scopeName = matchWord.left(m);
+                matchWord = matchWord.mid(m + 2);
+            }
 
-      //printf("ScopeName=%s\n",scopeName.data());
-      //if (!found) printf("Trying to link %s in %s\n",word.data(),scopeName.data()); 
-      if (!found && 
-          getDefs(scopeName,matchWord,0,md,cd,fd,nd,gd) && 
-          //(md->isTypedef() || md->isEnumerate() || 
-          // md->isReference() || md->isVariable()
-          //) && 
-          (external ? md->isLinkable() : md->isLinkableInProject()) 
-         )
-      {
-        //printf("Found ref scope=%s\n",d?d->name().data():"<global>");
-        //ol.writeObjectLink(d->getReference(),d->getOutputFileBase(),
-        //                       md->anchor(),word);
-        if (md!=self && (self==0 || md->name()!=self->name())) 
-          // name check is needed for overloaded members, where getDefs just returns one
-        {
-          out.writeLink(md->getReference(),md->getOutputFileBase(),
-              md->anchor(),word);
-          //printf("found symbol %s\n",matchWord.data());
-          found=TRUE;
+            //printf("ScopeName=%s\n",scopeName.data());
+            //if (!found) printf("Trying to link %s in %s\n",word.data(),scopeName.data());
+            if (!found && getDefs(scopeName, matchWord, 0, md, cd, fd, nd, gd)
+                &&
+                //(md->isTypedef() || md->isEnumerate() ||
+                // md->isReference() || md->isVariable()
+                //) &&
+                (external ? md->isLinkable() : md->isLinkableInProject()))
+            {
+                //printf("Found ref scope=%s\n",d?d->name().data():"<global>");
+                //ol.writeObjectLink(d->getReference(),d->getOutputFileBase(),
+                //                       md->anchor(),word);
+                if (md != self && (self == 0 || md->name() != self->name()))
+                // name check is needed for overloaded members, where getDefs just returns one
+                {
+                    out.writeLink(md->getReference(), md->getOutputFileBase(),
+                        md->anchor(), word);
+                    //printf("found symbol %s\n",matchWord.data());
+                    found = TRUE;
+                }
+            }
         }
-      }
-    }
 
-    if (!found) // add word to the result
-    {
-      out.writeString(word,keepSpaces);
+        if (!found) // add word to the result
+        {
+            out.writeString(word, keepSpaces);
+        }
+        // set next start point in the string
+        //printf("index=%d/%d\n",index,txtStr.length());
+        skipIndex = index = newIndex + matchLen;
     }
-    // set next start point in the string
-    //printf("index=%d/%d\n",index,txtStr.length());
-    skipIndex=index=newIndex+matchLen;
-  }
-  // add last part of the string to the result.
-  //ol.docify(txtStr.right(txtStr.length()-skipIndex));
-  out.writeString(txtStr.right(txtStr.length()-skipIndex),keepSpaces);
+    // add last part of the string to the result.
+    //ol.docify(txtStr.right(txtStr.length()-skipIndex));
+    out.writeString(txtStr.right(txtStr.length() - skipIndex), keepSpaces);
 }
 
 
