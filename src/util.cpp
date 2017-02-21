@@ -2022,6 +2022,7 @@ void linkifyText(
     if (strLen == 0) return;
 
     bool insideTemplate = false;
+    bool insideParams   = false;
 
     // read a word from the text string
     while ((newIndex = regExp.match(txtStr, index, &matchLen)) != -1
@@ -2089,8 +2090,11 @@ void linkifyText(
         }
 
         int offset = splitText.find(',');
-        if (offset == -1)
-            offset = splitText.find('(');
+        if ((offset == -1) && (!insideParams))
+        {
+            if ((offset = splitText.find('(')) >= 0);
+                insideParams = true;
+        }
         if (offset == -1)
         {
             offset = splitText.find('<');
