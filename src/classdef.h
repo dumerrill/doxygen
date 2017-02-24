@@ -422,6 +422,7 @@ class ClassDef : public Definition
     void writeMemberDocumentation(OutputList &ol,MemberListType lt,const QCString &title,bool showInline=FALSE);
     void writeSimpleMemberDocumentation(OutputList &ol,MemberListType lt);
     void writePlainMemberDeclaration(OutputList &ol,MemberListType lt,bool inGroup,ClassDef *inheritedFrom,const char *inheritId);
+    void writeTemplateSpec(OutputList &ol, const QCString &type, SrcLangExt lang);
     void writeBriefDescription(OutputList &ol,bool exampleFlag);
     void writeDetailedDescription(OutputList &ol,const QCString &pageType,bool exampleFlag,
                                   const QCString &title,const QCString &anchor=QCString());

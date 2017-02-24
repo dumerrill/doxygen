@@ -1609,20 +1609,22 @@ void HtmlGenerator::startMemberDocName(bool /*align*/)
 {
   DBG_HTML(t << "<!-- startMemberDocName -->" << endl;)
 
+  // mooch
   t << "      <table class=\"memname\">" << endl;
-    
   t << "        <tr>" << endl;
   t << "          <td class=\"memname\" colspan=\"4\">";
 }
 
 void HtmlGenerator::endMemberDocName()
 {
+  // mooch
   DBG_HTML(t << "<!-- endMemberDocName -->" << endl;)
   t << "</td> <td></td> <td></td> <td></td> </tr>" << endl;
 }
 
 void HtmlGenerator::startParameterList(bool openBracket)
 {
+    // mooch
   DBG_HTML(t << "<!-- startParameterList -->" << endl;)
   t << "          <tr> <td></td> <td>";
   if (openBracket) t << "(";

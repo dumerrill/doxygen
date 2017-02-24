@@ -913,15 +913,19 @@ static void searchTemplateSpecs(/*in*/  Definition *d,
   }
 }
 
-static void writeTemplateSpec(OutputList &ol,Definition *d,
-            const QCString &type,SrcLangExt lang)
+void ClassDef::writeTemplateSpec(
+    OutputList &ol,
+    const QCString &type,
+    SrcLangExt lang)
 {
   QList<ArgumentList> specs;
   QCString name;
-  searchTemplateSpecs(d,specs,name,lang);
+
+  ol.startSubsubsection();
+
+  searchTemplateSpecs(this,specs,name,lang);
   if (specs.count()>0) // class has template scope specifiers
   {
-    ol.startSubsubsection();
     QListIterator<ArgumentList> spi(specs);
     ArgumentList *al;
     for (spi.toFirst();(al=spi.current());++spi)
@@ -964,10 +968,39 @@ static void writeTemplateSpec(OutputList &ol,Definition *d,
       ol.docify(">");
       ol.lineBreak();
     }
-    ol.docify(type.lower()+" "+name);
-    ol.endSubsubsection();
-    ol.writeString("\n");
   }
+
+  ol.docify(type.lower()+" "+name);
+
+  if (m_impl->inherits && m_impl->inherits->count()>0)
+  {
+      ol.docify(" : ");
+      for (int i = 0; i < m_impl->inherits->count(); ++i)
+      {
+          BaseClassDef *bcd = m_impl->inherits->at(i);
+          if (bcd)
+          {
+            ClassDef *cd = bcd->classDef;
+
+            if (i > 0) ol.docify(", ");
+
+            if (cd->isLinkable())
+            {
+              ol.writeObjectLink(cd->getReference(),
+                                 cd->getOutputFileBase(),
+                                 cd->anchor(),
+                                 cd->displayName());
+            }
+            else
+            {
+              ol.docify(cd->displayName());
+            }
+          }
+      }
+  }
+
+  ol.endSubsubsection();
+  ol.writeString("\n");
 }
 
 void ClassDef::writeBriefDescription(OutputList &ol,bool exampleFlag)
@@ -1005,7 +1038,10 @@ void ClassDef::writeDetailedDocumentationBody(OutputList &ol)
 
   if (getLanguage()==SrcLangExt_Cpp)
   {
-    writeTemplateSpec(ol,this,compoundTypeString(),getLanguage());
+    writeTemplateSpec(
+        ol,
+        compoundTypeString(),
+        getLanguage());
   }
 
   // repeat brief description
